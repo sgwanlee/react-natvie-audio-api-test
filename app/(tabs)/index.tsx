@@ -29,30 +29,30 @@ export default function HomeScreen() {
 
   const connectConversation = async () => {
     console.log("connectConversation");
-    // if (!audioContextRef.current) {
-    //   audioContextRef.current = new AudioContext();
-    // }
-
-    console.log("A");
-    const client = clientRef.current;
-
-    console.log("client", client);
-
-    try {
-      console.log("connecting to realtime API");
-      await client.connect();
-
-      setIsConnected(true);
-
-      await client.sendUserMessageContent([
-        {
-          type: `input_text`,
-          text: `안녕!`,
-        },
-      ]);
-    } catch (e) {
-      console.error(e);
+    if (!audioContextRef.current) {
+      audioContextRef.current = new AudioContext();
     }
+
+    // console.log("A");
+    // const client = clientRef.current;
+
+    // console.log("client", client);
+
+    // try {
+    //   console.log("connecting to realtime API");
+    //   await client.connect();
+
+    //   setIsConnected(true);
+
+    //   await client.sendUserMessageContent([
+    //     {
+    //       type: `input_text`,
+    //       text: `안녕!`,
+    //     },
+    //   ]);
+    // } catch (e) {
+    //   console.error(e);
+    // }
   };
 
   const disconnectConversation = async () => {
@@ -118,7 +118,9 @@ export default function HomeScreen() {
           onPress={isConnected ? disconnectConversation : connectConversation}
           style={{ padding: 4 }}
         >
-          <Text>{isConnected ? "Disconnect" : "Connect"}</Text>
+          <Text style={{ color: "red" }}>
+            {isConnected ? "Disconnect" : "Connect"}
+          </Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
