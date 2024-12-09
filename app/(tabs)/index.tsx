@@ -1,74 +1,126 @@
-import { Image, StyleSheet, Platform } from 'react-native';
+import {
+  Image,
+  StyleSheet,
+  Platform,
+  SafeAreaView,
+  View,
+  TouchableOpacity,
+  Text,
+} from "react-native";
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+import { HelloWave } from "@/components/HelloWave";
+import ParallaxScrollView from "@/components/ParallaxScrollView";
+import { ThemedText } from "@/components/ThemedText";
+import { ThemedView } from "@/components/ThemedView";
+import { AudioContext } from "react-native-audio-api";
+import { useEffect, useRef, useState } from "react";
+import { RealtimeClient } from "@openai/realtime-api-beta";
+import { goofyResample } from "@/utils/decode";
 
 export default function HomeScreen() {
+  const [isConnected, setIsConnected] = useState(false);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const clientRef = useRef<RealtimeClient>(
+    new RealtimeClient({
+      apiKey: process.env.EXPO_PUBLIC_OPENAI_API_KEY,
+      dangerouslyAllowAPIKeyInBrowser: true,
+    })
+  );
+
+  const connectConversation = async () => {
+    console.log("connectConversation");
+    // if (!audioContextRef.current) {
+    //   audioContextRef.current = new AudioContext();
+    // }
+
+    console.log("A");
+    const client = clientRef.current;
+
+    console.log("client", client);
+
+    try {
+      console.log("connecting to realtime API");
+      await client.connect();
+
+      setIsConnected(true);
+
+      await client.sendUserMessageContent([
+        {
+          type: `input_text`,
+          text: `안녕!`,
+        },
+      ]);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const disconnectConversation = async () => {
+    setIsConnected(false);
+
+    const client = clientRef.current;
+    client.disconnect();
+  };
+
+  useEffect(() => {
+    const client = clientRef.current;
+
+    // Set instructions
+    client.updateSession({ instructions: "너는 노인을 도와주는 에이전트야." });
+    client.updateSession({ voice: "alloy" });
+    // Set transcription, otherwise we don't get user transcriptions back
+    client.updateSession({ input_audio_transcription: { model: "whisper-1" } });
+
+    client.on("error", (event: any) => console.error(event));
+    client.on("conversation.updated", async ({ item, delta }: any) => {
+      const items = client.conversation.getItems();
+
+      if (delta?.audio) {
+      }
+      if (item.status === "completed") {
+        items.map((item) => {
+          if (item.role === "user") {
+            console.log(item);
+          }
+        });
+      }
+      if (item.status === "completed" && item.formatted.audio?.length) {
+        // Success case 1.
+        if (!audioContextRef.current) {
+          audioContextRef.current = new AudioContext();
+        }
+
+        const aCtx = audioContextRef.current;
+        const audioBuffer = goofyResample(
+          aCtx,
+          new Int16Array(item.formatted.audio)
+        );
+
+        console.log("audioBuffer", audioBuffer.length);
+
+        const sourceNode = aCtx.createBufferSource();
+        sourceNode.buffer = audioBuffer;
+        sourceNode.connect(aCtx.destination);
+        sourceNode.start();
+        sourceNode.stop(aCtx.currentTime + audioBuffer.duration);
+      }
+    });
+
+    return () => {
+      client.reset();
+    };
+  }, []);
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12'
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          Tap the Explore tab to learn more about what's included in this starter app.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          When you're ready, run{' '}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    <SafeAreaView>
+      <View style={{ padding: 10 }}>
+        <TouchableOpacity
+          onPress={isConnected ? disconnectConversation : connectConversation}
+          style={{ padding: 4 }}
+        >
+          <Text>{isConnected ? "Disconnect" : "Connect"}</Text>
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
-});
