@@ -33,26 +33,23 @@ export default function HomeScreen() {
       audioContextRef.current = new AudioContext();
     }
 
-    // console.log("A");
-    // const client = clientRef.current;
+    const client = clientRef.current;
 
-    // console.log("client", client);
+    try {
+      console.log("connecting to realtime API");
+      await client.connect();
 
-    // try {
-    //   console.log("connecting to realtime API");
-    //   await client.connect();
+      setIsConnected(true);
 
-    //   setIsConnected(true);
-
-    //   await client.sendUserMessageContent([
-    //     {
-    //       type: `input_text`,
-    //       text: `안녕!`,
-    //     },
-    //   ]);
-    // } catch (e) {
-    //   console.error(e);
-    // }
+      await client.sendUserMessageContent([
+        {
+          type: `input_text`,
+          text: `소담아!`,
+        },
+      ]);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const disconnectConversation = async () => {
@@ -66,7 +63,10 @@ export default function HomeScreen() {
     const client = clientRef.current;
 
     // Set instructions
-    client.updateSession({ instructions: "너는 노인을 도와주는 에이전트야." });
+    client.updateSession({
+      instructions:
+        "너는 노인을 도와주는 에이전트 소담이야. 5살 아이처럼 대답해.",
+    });
     client.updateSession({ voice: "alloy" });
     // Set transcription, otherwise we don't get user transcriptions back
     client.updateSession({ input_audio_transcription: { model: "whisper-1" } });
